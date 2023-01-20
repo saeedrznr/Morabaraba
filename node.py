@@ -1,4 +1,5 @@
 import math
+import robot
 
 
 class Node:
@@ -8,7 +9,11 @@ class Node:
         self.state = state
         self.index = index
         self.depth = depth
-        if is_max:
-            self.expecti_minimax = -math.inf
+        bot = robot.Robot()
+        if is_max == None:
+           self.expecti_minimax = (math.inf, bot.get_hiuristic(state,[])[1])
         else:
-            self.expecti_minimax = math.inf
+            if is_max:
+                self.expecti_minimax = (-math.inf, bot.get_hiuristic(state, [])[1])
+            else:
+                self.expecti_minimax = (math.inf, bot.get_hiuristic(state, [])[1])
