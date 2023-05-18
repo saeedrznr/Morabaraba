@@ -8,19 +8,30 @@ WIN_STATES = [(0, 1, 2), (3, 4, 5), (6, 7, 8), (9, 10, 11), (12, 13, 14), (15, 1
               # diagonal
               ]
 
+MOVEMENT_STATES = [[9, 3, 1], [0, 4, 2], [1, 5, 14],
+                   [0, 10, 4, 6], [3, 1, 5, 7], [4, 2, 8, 13],
+                   [11, 3, 7], [6, 4, 8], [7, 5, 12],
+                   [0, 21, 10], [9, 3, 18, 11], [10, 15, 6],
+                   [8, 17, 13], [12, 5, 20, 14], [13, 2, 23],
+                   [11, 18, 16], [15, 19, 17], [16, 12, 20],
+                   [10, 21, 19, 15], [18, 16, 22, 20], [19, 17, 23, 13],
+                   [9, 18, 22], [21, 19, 23], [22, 20, 14]]
+
 TOTAL_INDEXES = [0, 5, 15, 8, 18, 2, 3, 17, 23, 6, 21, 20, 1, 10, 12, 11, 14, 16, 4, 9, 13, 22, 7, 19]
 
-BOT_LEVEL = 4
+BOT_LEVEL = 5
 
 
 class Board:
-    def __init__(self):
+    def __init__(self, turn_is_user):
         self.robot_grade = 0
         self.user_grade = 0
         self.robot_bead_number = 12
         self.user_bead_number = 12
         self.robot_bead_out = 12
         self.user_bead_out = 12
+        self.turn_is_user = turn_is_user
+        self.wins = []
 
         self.indexes = [0, 5, 15, 8, 18, 2, 3, 17, 23, 6, 21, 20, 1, 10, 12, 11, 14, 16, 4, 9, 13, 22, 7, 19]
 
@@ -51,44 +62,79 @@ class Board:
                     """)
 
     def add_point(self, index, is_user: bool, call_back):
+        grade_before_adding = self.robot_grade
         if is_user:
-            grade_before_adding = self.calculate_grade()
-            self.states[index] = self.states[index] = USER_CHAR
-            grade_after_adding = self.calculate_grade()
-            self.user_bead_out -= 1
-            if grade_before_adding > grade_after_adding:  # user sets 3 in line
-                if self.robot_bead_out > 0:
-                    self.robot_bead_out -= 1
-                    self.robot_bead_number -= 1
-                else:
-                    will_be_removed_index = call_back(True)
-                    self.states[will_be_removed_index] = ' '
-                    self.indexes.append(TOTAL_INDEXES[will_be_removed_index])
-            print(self.indexes)
-            self.indexes.remove(index)
-
-
+            if index in self.indexes:
+                self.states[index] = self.states[index] = USER_CHAR
+                self.user_bead_out -= 1
+                print(self.indexes)
+                self.indexes.remove(index)
+                return True
+            else:
+                return False
         else:
-            grade_before_adding = self.calculate_grade()
             self.states[index] = self.states[index] = BOT_CHAR
-            grade_after_adding = self.calculate_grade()
             self.robot_bead_out -= 1
-            if grade_after_adding > grade_before_adding:  # bot sets 3 in line
-                if self.user_bead_out > 0:
-                    self.user_bead_out -= 1
-                    self.user_bead_number -= 1
-                else:
-                    will_be_removed_index = call_back(False)
-                    self.states[will_be_removed_index] = ' '
-                    self.indexes.append(TOTAL_INDEXES[will_be_removed_index])
             self.indexes.remove(index)
 
-        self.robot_grade = self.calculate_grade()
-        self.user_grade = -1 * self.robot_grade
+        self.calculate_grade()
+
+
+        self.showBoard()
+
+        grade_after_adding = self.robot_grade
+
+        if grade_before_adding > grade_after_adding:  # user sets 3 in same line
+            if self.robot_bead_out > 0:
+                self.robot_bead_out -= 1
+                self.robot_bead_number -= 1
+            else:
+                will_be_removed_index = call_back(True, self.states)
+                self.update_toatal_win_state()
+                self.states[will_be_removed_index] = ' '
+                self.indexes.append(TOTAL_INDEXES[will_be_removed_index])
+        elif grade_before_adding < grade_after_adding:  # bot sets 3 in same line
+            if self.user_bead_out > 0:
+                self.user_bead_out -= 1
+                self.user_bead_number -= 1
+            else:
+                will_be_removed_index = call_back(False, self.states)
+                self.update_toatal_win_state()
+                self.states[will_be_removed_index] = ' '
+                self.indexes.append(TOTAL_INDEXES[will_be_removed_index])
 
         self.showBoard()
 
         return index
+
+    def move(self, is_user, begin, des,call_back):
+        grade_bofore_move = self.robot_grade
+        if is_user:
+            if self.states[begin] == USER_CHAR and self.states[des] == ' ':
+                self.states[des] = USER_CHAR
+                self.states[begin] = ' '
+            else:
+                return False
+        else:
+            self.states[des] = BOT_CHAR
+            self.states[begin] = ' '
+
+        self.showBoard()
+        self.calculate_grade()
+        grade_after_move = self.robot_grade
+        if grade_bofore_move > grade_after_move:  # user sets 3 in same line
+                will_be_removed_index = call_back(True, self.states)
+                self.update_toatal_win_state()
+                self.update_toatal_win_state()
+                self.states[will_be_removed_index] = ' '
+                self.indexes.append(TOTAL_INDEXES[will_be_removed_index])
+        elif grade_bofore_move < grade_after_move:  # bot sets 3 in same line
+                will_be_removed_index = call_back(False, self.states)
+                self.update_toatal_win_state()
+                self.update_toatal_win_state()
+                self.states[will_be_removed_index] = ' '
+                self.indexes.append(TOTAL_INDEXES[will_be_removed_index])
+
 
     def beads_ended(self):
         if self.user_bead_out == 0 and self.robot_bead_out == 0:
@@ -96,12 +142,26 @@ class Board:
         return False
 
     def calculate_grade(self):
-        grade = 0
+        for item in WIN_STATES:
+            if self.states[item[0]] == BOT_CHAR and self.states[item[1]] == BOT_CHAR and self.states[
+                item[2]] == BOT_CHAR and item not in self.wins:
+                self.robot_grade += 1
+                self.user_grade -= 1
+                self.wins.append(item)
+            elif self.states[item[0]] == USER_CHAR and self.states[item[1]] == USER_CHAR and self.states[
+                item[2]] == USER_CHAR and item not in self.wins:
+                self.user_grade += 1
+                self.robot_grade -= 1
+                self.wins.append(item)
+
+
+    def update_toatal_win_state(self):
+        self.wins = []
         for item in WIN_STATES:
             if self.states[item[0]] == BOT_CHAR and self.states[item[1]] == BOT_CHAR and self.states[
                 item[2]] == BOT_CHAR:
-                grade += 1
+                self.wins.append(item)
             elif self.states[item[0]] == USER_CHAR and self.states[item[1]] == USER_CHAR and self.states[
-                item[2]] == USER_CHAR:
-                grade -= 1
-        return grade
+                item[2]] == USER_CHAR :
+                self.wins.append(item)
+
